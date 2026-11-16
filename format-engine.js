@@ -24,6 +24,7 @@ print_result
 
 // Export gate: reopen the written machine file and compare every needle penetration.
 export async function exportValidatedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false,skipIndices=[]}={}){
+  const skipSet=new Set(skipIndices);if(skipSet.size){const events=design.events;for(let i=0;i<events.length;i++){const e=events[i];if(!skipSet.has(e.index))continue;if(e.type!=='stitch')throw Error('Only stitch commands may be removed.');let before=null,after=null;for(let j=i-1;j>=0;j--){if(['jump','trim','color','stop','end'].includes(events[j].type))break;if(events[j].type==='stitch'&&!skipSet.has(events[j].index)){before=events[j];break;}}for(let j=i+1;j<events.length;j++){if(['jump','trim','color','stop','end'].includes(events[j].type))break;if(events[j].type==='stitch'&&!skipSet.has(events[j].index)){after=events[j];break;}}if(!before||!after)throw Error('Validation blocked removal of a boundary or tie stitch.');if(Math.hypot(after.x-before.x,after.y-before.y)>1.5)throw Error('Validation blocked removal: stitch span exceeds 1.5 mm.');}}
   const bytes=await exportEditedDesign(design,trimIndices,format,onStatus,{removeZeroLength,skipIndices});
   onStatus('Reopening export and validating needle positions…');
   const reopened=await parseWithLibrary(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'verification.'+format,onStatus);
