@@ -1,0 +1,9 @@
+{
+  "name": "stitchwise-ai-browser",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Browser-only local embroidery inspector",
+  "scripts": {
+    "start": "node server.cjs"
+  }
+}
