@@ -16,8 +16,8 @@ Use the GitHub Pages link above or run `node server.cjs` and visit http://localh
 ## Extended formats
 The first import of an extended format downloads Pyodide and installs the open-source pyembroidery Python package into the browser runtime. This requires an internet connection and may take a minute. Design bytes remain in the browser; they are not sent to a StitchWise server. Formats vary in what data they encode, and individual files may fail to parse. The supported extension list reflects the reader's known family of formats, not a guarantee that every variant works.
 
-## Limitations
-- The application does not edit, repair, or export embroidery files.
+## Experimental jump-trim editing\nLoad a design, select jumps longer than a chosen distance or check individual jumps, choose PES/JEF/VP3/DST/EXP, and download a new file. The source design is unchanged. This inserts trim commands before selected jumps; it does not recalculate stitch routing or fix dense embroidery automatically. Some formats do not preserve explicit trim commands. Export may lose original thread-color metadata, so verify output in dedicated embroidery software before using it. This feature has not been validated against real-world machine files yet.\n\n## Limitations
+- Selective jump-trim export is experimental. No automatic geometry repair, density reduction or safe sew-out guarantee.
 - Diagnostics are approximations, not reliable predictions of real sew-out results, and the risk score is heuristic.
 - Registration errors, real fill density and fabric puckering cannot be reliably diagnosed from stitch coordinates alone; highlighted findings are indicators for human review.
 - No trained AI model is involved.
