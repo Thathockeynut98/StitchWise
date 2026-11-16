@@ -23,12 +23,12 @@ print_result
 `);const events=JSON.parse(json);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,stitches=0,jumps=0,colors=0;for(const e of events){if(e.type==='stitch')stitches++;if(e.type==='jump')jumps++;if(e.type==='color')colors++;if(Number.isFinite(e.x)&&Number.isFinite(e.y)){minX=Math.min(minX,e.x);maxX=Math.max(maxX,e.x);minY=Math.min(minY,e.y);maxY=Math.max(maxY,e.y);}}if(!Number.isFinite(minX))throw Error('No coordinate data was decoded.');return {filename,format:ext.toUpperCase(),events,stats:{stitches,jumps,colors:colors+1,width:maxX-minX,height:maxY-minY,bounds:{minX,maxX,minY,maxY}}};}finally{py.FS.unlink(path);}}
 
 // Export gate: reopen the written machine file and compare every needle penetration.
-export async function exportValidatedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false}={}){
-  const bytes=await exportEditedDesign(design,trimIndices,format,onStatus,{removeZeroLength});
+export async function exportValidatedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false,skipIndices=[]}={}){
+  const bytes=await exportEditedDesign(design,trimIndices,format,onStatus,{removeZeroLength,skipIndices});
   onStatus('Reopening export and validating needle positions…');
   const reopened=await parseWithLibrary(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'verification.'+format,onStatus);
-  const expected=[];let previous=null;
-  for(const e of design.events){if(e.type==='stitch'){
+  const expected=[];let previous=null;const skipSet=new Set(skipIndices);
+  for(const e of design.events){if(e.type==='stitch'){if(skipSet.has(e.index))continue;
     if(!(removeZeroLength&&previous&&Math.hypot(e.x-previous.x,e.y-previous.y)<0.01))expected.push(e);
     previous=e;
   }else if(['jump','trim','color','stop'].includes(e.type))previous=null;}
@@ -59,7 +59,7 @@ export async function exportEditedDesign(design,trimIndices,format,onStatus=()=>
   const events=design.events.map(e=>({type:e.type,x:Math.round((e.x||0)*10),y:Math.round(-(e.y||0)*10),index:e.index}));
   py.globals.set('sw_export_events',JSON.stringify(events));
   py.globals.set('sw_trim_indices',JSON.stringify([...trimIndices]));
-  py.globals.set('sw_remove_zero',removeZeroLength);
+  py.globals.set('sw_remove_zero',removeZeroLength);py.globals.set('sw_skip_indices',JSON.stringify(skipIndices));
   py.globals.set('sw_export_format',format);
   const path='/tmp/stitchwise_export.'+format;
   py.globals.set('sw_export_path',path);
@@ -69,11 +69,14 @@ import json
 import pyembroidery as pe
 data=json.loads(sw_export_events)
 trim_set=set(json.loads(sw_trim_indices))
+skip_set=set(json.loads(sw_skip_indices))
 p=pe.EmbPattern()
 types={'stitch':pe.STITCH,'jump':pe.JUMP,'trim':pe.TRIM,'stop':pe.STOP,'color':pe.COLOR_CHANGE,'end':pe.END}
 last_x=last_y=0
 last_kind=None
 for e in data:
+    if e['index'] in skip_set and e['type']=='stitch':
+        continue
     kind=e['type']
     if kind=='stitch' and sw_remove_zero and last_kind=='stitch' and e['x']==last_x and e['y']==last_y:\n        continue\n    if kind=='jump' and e['index'] in trim_set and last_kind!='trim':
         p.add_stitch_absolute(pe.TRIM, last_x, last_y)
