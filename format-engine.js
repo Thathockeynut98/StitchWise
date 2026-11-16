@@ -22,7 +22,7 @@ print_result=json.dumps(events,separators=(',',':'))
 print_result
 `);const events=JSON.parse(json);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,stitches=0,jumps=0,colors=0;for(const e of events){if(e.type==='stitch')stitches++;if(e.type==='jump')jumps++;if(e.type==='color')colors++;if(Number.isFinite(e.x)&&Number.isFinite(e.y)){minX=Math.min(minX,e.x);maxX=Math.max(maxX,e.x);minY=Math.min(minY,e.y);maxY=Math.max(maxY,e.y);}}if(!Number.isFinite(minX))throw Error('No coordinate data was decoded.');return {filename,format:ext.toUpperCase(),events,stats:{stitches,jumps,colors:colors+1,width:maxX-minX,height:maxY-minY,bounds:{minX,maxX,minY,maxY}}};}finally{py.FS.unlink(path);}}
 
-export async function exportEditedDesign(design,trimIndices,format,onStatus=()=>{}){
+export async function exportEditedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false}={}){
   if(!['pes','jef','vp3','dst','exp'].includes(format))throw Error('Export format not supported.');
   if(!design?.events?.length)throw Error('Load a design before exporting.');
   onStatus('Preparing a new stitch file locally…');
@@ -31,6 +31,7 @@ export async function exportEditedDesign(design,trimIndices,format,onStatus=()=>
   const events=design.events.map(e=>({type:e.type,x:Math.round((e.x||0)*10),y:Math.round(-(e.y||0)*10),index:e.index}));
   py.globals.set('sw_export_events',JSON.stringify(events));
   py.globals.set('sw_trim_indices',JSON.stringify([...trimIndices]));
+  py.globals.set('sw_remove_zero',removeZeroLength);
   py.globals.set('sw_export_format',format);
   const path='/tmp/stitchwise_export.'+format;
   py.globals.set('sw_export_path',path);
@@ -43,19 +44,20 @@ trim_set=set(json.loads(sw_trim_indices))
 p=pe.EmbPattern()
 types={'stitch':pe.STITCH,'jump':pe.JUMP,'trim':pe.TRIM,'stop':pe.STOP,'color':pe.COLOR_CHANGE,'end':pe.END}
 last_x=last_y=0
+last_kind=None
 for e in data:
     kind=e['type']
-    if kind=='jump' and e['index'] in trim_set:
+    if kind=='stitch' and sw_remove_zero and last_kind=='stitch' and e['x']==last_x and e['y']==last_y:\n        continue\n    if kind=='jump' and e['index'] in trim_set and last_kind!='trim':
         p.add_stitch_absolute(pe.TRIM, last_x, last_y)
     if kind=='end':
         break
     cmd=types.get(kind)
     if cmd is not None:
         p.add_stitch_absolute(cmd,e['x'],e['y'])
-    last_x,last_y=e['x'],e['y']
+    last_x,last_y=e['x'],e['y']\n    last_kind=kind
 p.add_stitch_absolute(pe.END)
 pe.write(p,sw_export_path)
 `);
-    return new Uint8Array(py.FS.readFile(path));
+    const bytes=new Uint8Array(py.FS.readFile(path));if(bytes.length<16)throw Error('Export produced an invalid or empty file.');return bytes;
   }finally{if(py.FS.analyzePath(path).exists)py.FS.unlink(path);}
 }
