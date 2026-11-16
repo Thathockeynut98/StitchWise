@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — Multi-format inspection and simulator
+## 0.2.1 — Experimental jump trim export\n- Select long jump movements automatically or individually.\n- Insert trim commands and download a new PES/JEF/VP3/DST/EXP design.\n- Preserve the original file and warn about color metadata, format trim semantics and sew-out validation.\n\n## 0.2.0 — Multi-format inspection and simulator
 - Added extended-format import engine using browser-side Pyodide and pyembroidery.
 - Added playback, pause, scrub and adjustable playback speed.
 - Added repeated needle penetration, retracing, and micro-stitch risk heuristics.
