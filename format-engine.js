@@ -22,6 +22,34 @@ print_result=json.dumps(events,separators=(',',':'))
 print_result
 `);const events=JSON.parse(json);let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity,stitches=0,jumps=0,colors=0;for(const e of events){if(e.type==='stitch')stitches++;if(e.type==='jump')jumps++;if(e.type==='color')colors++;if(Number.isFinite(e.x)&&Number.isFinite(e.y)){minX=Math.min(minX,e.x);maxX=Math.max(maxX,e.x);minY=Math.min(minY,e.y);maxY=Math.max(maxY,e.y);}}if(!Number.isFinite(minX))throw Error('No coordinate data was decoded.');return {filename,format:ext.toUpperCase(),events,stats:{stitches,jumps,colors:colors+1,width:maxX-minX,height:maxY-minY,bounds:{minX,maxX,minY,maxY}}};}finally{py.FS.unlink(path);}}
 
+// Export gate: reopen the written machine file and compare every needle penetration.
+export async function exportValidatedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false}={}){
+  const bytes=await exportEditedDesign(design,trimIndices,format,onStatus,{removeZeroLength});
+  onStatus('Reopening export and validating needle positions…');
+  const reopened=await parseWithLibrary(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'verification.'+format,onStatus);
+  const expected=[];let previous=null;
+  for(const e of design.events){if(e.type==='stitch'){
+    if(!(removeZeroLength&&previous&&Math.hypot(e.x-previous.x,e.y-previous.y)<0.01))expected.push(e);
+    previous=e;
+  }else if(['jump','trim','color','stop'].includes(e.type))previous=null;}
+  const actual=reopened.events.filter(e=>e.type==='stitch');
+  if(expected.length!==actual.length)throw Error('Validation blocked download: expected '+expected.length+' needle penetrations, reopened file contains '+actual.length+'.');
+  let maxError=0;
+  for(let i=0;i<expected.length;i++){
+    const distance=Math.hypot(expected[i].x-actual[i].x,expected[i].y-actual[i].y);
+    if(!Number.isFinite(distance))throw Error('Validation blocked download: non-finite stitch coordinates.');
+    maxError=Math.max(maxError,distance);
+    if(distance>0.16)throw Error('Validation blocked download: stitch #'+(i+1)+' moved '+distance.toFixed(2)+' mm.');
+  }
+  const originalColors=design.events.filter(e=>e.type==='color').length;
+  const reopenedColors=reopened.events.filter(e=>e.type==='color').length;
+  if(originalColors!==reopenedColors)throw Error('Validation blocked download: color-change count changed ('+originalColors+' → '+reopenedColors+').');
+  const widthDiff=Math.abs(design.stats.width-reopened.stats.width);
+  const heightDiff=Math.abs(design.stats.height-reopened.stats.height);
+  if(widthDiff>0.2||heightDiff>0.2)throw Error('Validation blocked download: dimensions changed unexpectedly.');
+  return {bytes,validation:{originalStitches:design.stats.stitches,exportedStitches:actual.length,originalJumps:design.stats.jumps,exportedJumps:reopened.stats.jumps,originalColors,reopenedColors,maxError,maxWidthDelta:widthDiff,maxHeightDelta:heightDiff}};
+}
+
 export async function exportEditedDesign(design,trimIndices,format,onStatus=()=>{},{removeZeroLength=false}={}){
   if(!['pes','jef','vp3','dst','exp'].includes(format))throw Error('Export format not supported.');
   if(!design?.events?.length)throw Error('Load a design before exporting.');
