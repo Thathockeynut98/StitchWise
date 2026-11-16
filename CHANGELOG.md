@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 — Multi-format inspection and simulator
+- Added extended-format import engine using browser-side Pyodide and pyembroidery.
+- Added playback, pause, scrub and adjustable playback speed.
+- Added repeated needle penetration, retracing, and micro-stitch risk heuristics.
+- Added progress messages and updated file selector.
+
+# Changelog
+
 ## 0.1.1 — Browser edition
 - Removed Windows/Electron desktop requirement.
 - Local browser analysis of DST and EXP designs.
