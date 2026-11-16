@@ -28,7 +28,7 @@ export async function exportValidatedDesign(design,trimIndices,format,onStatus=(
   const bytes=await exportEditedDesign(design,trimIndices,format,onStatus,{removeZeroLength,skipIndices});
   onStatus('Reopening export and validating needle positions…');
   const reopened=await parseWithLibrary(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'verification.'+format,onStatus);
-  const expected=[];let previous=null;const skipSet=new Set(skipIndices);
+  const expected=[];let previous=null;
   for(const e of design.events){if(e.type==='stitch'){if(skipSet.has(e.index))continue;
     if(!(removeZeroLength&&previous&&Math.hypot(e.x-previous.x,e.y-previous.y)<0.01))expected.push(e);
     previous=e;
