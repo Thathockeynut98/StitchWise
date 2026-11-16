@@ -42,15 +42,17 @@ data=json.loads(sw_export_events)
 trim_set=set(json.loads(sw_trim_indices))
 p=pe.EmbPattern()
 types={'stitch':pe.STITCH,'jump':pe.JUMP,'trim':pe.TRIM,'stop':pe.STOP,'color':pe.COLOR_CHANGE,'end':pe.END}
+last_x=last_y=0
 for e in data:
     kind=e['type']
     if kind=='jump' and e['index'] in trim_set:
-        p.add_stitch_absolute(pe.TRIM, e['x'], e['y'])
+        p.add_stitch_absolute(pe.TRIM, last_x, last_y)
     if kind=='end':
         break
     cmd=types.get(kind)
     if cmd is not None:
         p.add_stitch_absolute(cmd,e['x'],e['y'])
+    last_x,last_y=e['x'],e['y']
 p.add_stitch_absolute(pe.END)
 pe.write(p,sw_export_path)
 `);
